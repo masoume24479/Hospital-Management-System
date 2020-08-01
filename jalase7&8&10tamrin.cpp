@@ -7,18 +7,29 @@
 #include<sstream>
 #include <conio.h>
 using namespace std;
+fstream outputFile;
+string doctorFile="Doctors.csv";
+string patientFile="Patients.csv";
+string PDFile="PD.csv";
+
 multimap<int,string> savedReservations;
 multimap<int, string> getSavedReservation(){
 	return savedReservations;
 }
 
-
-class csvReader{
+long int getSizeOfFile(string fileName){
+	long int size=0;
+	ifstream iFile(fileName);
+	iFile.seekg(0,ios::end);
+	size=iFile.tellg();
+	return size;
+}
+class CSVReader{
 	private:
 		string fileName;
 		char delimeter;
 	public:
-		csvReader(string fileName,char delimeter=','){
+		CSVReader(string fileName,char delimeter=','){
 			this->fileName=fileName;
 			this->delimeter=delimeter;
 		}
@@ -86,7 +97,7 @@ class Person{
 		}
 };
 class Employee:public Person{
-	private:
+	protected:
 		int codeEmployee;
 	public:	
 		/////////constructor//////////////////
@@ -104,7 +115,7 @@ class Employee:public Person{
 			return codeEmployee;
 		}
 		//////////functions/////////////////
-		void report(){
+		void report()const{
 			cout<<name<<setw(6)<<family<<setw(6)<<phone<<setw(4)<<age<<setw(6)<<codeEmployee<<"\n";
 		}
 };
@@ -114,7 +125,7 @@ class Doctor:public Employee{
 	public:	
 		///////////////constructor//////////////////
 		Doctor(){}
-		Doctor(string name, string family, string phone,int age, int codeDoctor, string proficiency):Employee(name,family,phone,age,codeDoctor){
+		Doctor(int codeDoctor, string name, string family, string phone, int age, string proficiency):Employee(name,family,phone,age,codeDoctor){
 			this->proficiency=proficiency;
 		}
 		//////////////////setter////////////////////
@@ -125,48 +136,109 @@ class Doctor:public Employee{
 		string getProficiency()const{
 			return proficiency;
 		}
-		void report(){
-			cout<<name<<setw(6)<<family<<setw(10)<<phone<<setw(8)<<age<<setw(6)<<proficiency<<setw(8)<<getCodeEmp()<<"\n";
+		void report()const{
+			cout<<codeEmployee<<setw(6)<<name<<setw(6)<<family<<setw(10)<<phone<<setw(8)<<age<<setw(6)<<proficiency<<setw(8)<<"\n";
+		}
+		void saveReservation();
+		friend ostream &operator <<(ostream &out, const Doctor &obj){
+			out<<obj.codeEmployee<<" , "<<obj.name<<" , "<<obj.family<<" , "<<obj.phone<<" , "<<obj.age<<" , "<<obj.proficiency<<"\n";
+			return out;
+		}
+		friend istream &operator <<(istream &in, Doctor &obj){
+			in>>obj.codeEmployee;
+			in>>obj.name;
+			in>>obj.family;
+			in>>obj.phone;
+			in>>obj.age;
+			in>>obj.proficiency;
+			return in;
 		}
 };
 class Patient:public Person{
 	private:
-		string diseaseType, doctorName;
+		//int codeDoctor;
+		string illnessType,doctorName;
 		int codePatient;
 		vector<Doctor> reserves;
 	public:	
 		///////////////constructor//////////////////
 		Patient(){}
-		Patient(string name, string family, string phone, int age, string diseaseType,int codePatient, string doctorName):Person(name, family, phone, age){
-			this->diseaseType=diseaseType;
-			this->codePatient=codePatient;
+		Patient(int codePatient,string name, string family, string phone, int age, string doctorName,string illnessType):Person(name, family, phone, age){
+			this->illnessType=illnessType;
 			this->doctorName=doctorName;
+			this->codePatient=codePatient;
 		}
 		//////////////////setter////////////////////
-		void setdiseaseType(string diseaseType){
-			this->diseaseType=diseaseType;
+		void setDoctorName(string doctorName){
+			this->doctorName=doctorName;
+		}
+		void setIllnessType(string illnessType){
+			this->illnessType=illnessType;
 		}
 		void setCodePatient(int codePatient){
 			this->codePatient=codePatient;
 		}
-		void setDoctorName(string doctorName){
-			this->doctorName=doctorName;
-		}
 		/////////////////getter////////////////////
-		string getDiseaseType()const{
-			return diseaseType;
+		string getDoctorName()const{
+			return doctorName;
+		}
+		string getIllnessType()const{
+			return illnessType;
 		}
 		int getCodePatient()const{
 			return codePatient;
 		}
-		string getDoctorName()const{
-			return doctorName;
-		}
 		/////////////functions////////////////////
 		void report()const{
-			cout<<name<<setw(4)<<family<<setw(6)<<phone<<setw(10)<<age<<setw(10)<<diseaseType<<setw(6)<<codePatient<<setw(6)<<doctorName<<"\n";
+			cout<<codePatient<<setw(6)<<name<<setw(4)<<family<<setw(6)<<phone<<setw(10)<<age<<setw(6)<<doctorName<<setw(6)<<illnessType<<"\n";
 		}
-		string selectDoctor(string ,string ,string);
+		string selectDoctor(int);
+		friend ostream &operator <<(ostream &out, const Patient &obj){
+			out<<obj.codePatient<<setw(6)<<obj.name<<" , "<<obj.family<<" , "<<obj.phone<<" , "<<obj.age<<" , "<<obj.doctorName<<" , "<<obj.illnessType<<"\n";
+			return out;
+		}
+		friend istream &operator <<(istream &in, Patient &obj){
+			in>>obj.codePatient;
+			in>>obj.name;
+			in>>obj.family;
+			in>>obj.phone;
+			in>>obj.age;
+			in>>obj.doctorName;
+			in>>obj.illnessType;
+			return in;
+		}
+};
+class PD{
+	int codeDoctor,codePatient;
+	CSVReader *reader, *reader2;
+	public:
+		void insert(int codeDoctor, int codePatient){
+			outputFile.open(PDFile,ios::app);
+			outputFile<<codeDoctor+" , "+codePatient<<"\n";
+		}
+		void showPatientList(int codeDoctor){
+			reader=new CSVReader(PDFile);
+			vector<vector<string>> dataList=reader->getData();//pointer needs -> to access functions 
+			vector<string> vec1;
+			for(vector<string> vec:dataList){
+				if(codeDoctor==stoi(vec[0])){
+					vec1.push_back(vec[1]);
+				}
+			}
+			reader2=new CSVReader(patientFile);
+			vector<vector<string>> dataList1=reader2->getData();
+			for(vector<string> vec:dataList1){
+				for(int i=0;i<vec1.size();i++){
+					if(stoi(vec[0])==stoi(vec1[i])){
+						for(int i=0;i<2;i++){
+							cout<<vec[i]<<" ";
+						}
+					}
+					cout<<"\n";
+				}
+			}
+		}
+		
 };
 class Phone{
 	private:
@@ -177,6 +249,7 @@ class Phone{
 			string msg1="phone number can not be less than 11 digits.try again.\n";
 			string msg2="phone number can not start number except 0.try again.\n";
 			string msg3="phone number can not contain letter.try again.\n";
+		
 		start:
 			try{
 				phone.clear();
@@ -199,8 +272,8 @@ class Phone{
 				goto start;
 			}
 			return phone;
-		}		
-};
+		}
+};				
 class Name{
 	private:
 		string name;
@@ -251,7 +324,6 @@ class Family{
 };
 class Age{
 	private:
-		//string str;
 		int age;
 	public:
 		int getAge(string part){
@@ -319,7 +391,7 @@ class Password{
 			passFile<<username+","+pass<<"\n";
 		}
 		string verifyPass(string username ){
-			csvReader reader("password.csv");
+			CSVReader reader("password.csv");
 			vector<vector<string>> dataList=reader.getData();
 			for(vector<string> vec:dataList){
 				for(string data:vec){
@@ -330,6 +402,32 @@ class Password{
 			}
 		}	
 };
+
+void showData(string fileName){
+	CSVReader reader(fileName);
+	vector<vector<string>> dataList=reader.getData();
+	for(vector<string> vec:dataList){
+		for(string data:vec){
+			
+			cout<<data<<setw(6);
+		}
+		cout<<"\n";
+	}
+}
+void showOneData(string fileName, int code){
+	CSVReader reader(fileName);
+	vector<vector<string>> dataList=reader.getData();
+	for(vector<string> vec:dataList){
+		if(vec[0]==to_string(code)){
+			for(int i=0;i<vec.size();i++){
+				cout<<vec[i]<<setw(6);
+			}
+			cout<<"\n";
+		}
+		cout<<"\n";
+	}
+}
+PD *pd;
 //////////////   Doctor   ///////////////
 vector<Doctor> listDoctor, listDoctorTemp;
 fstream outputFileDoc;
@@ -350,9 +448,12 @@ void writeDoctor(){
 	cout<<"\nenter codeDoctor:";
 	cin>>codeDoctor;
 	pass.inputPass();
-	listDoctor.push_back(Doctor(name,family,phone,age,codeDoctor,proficiency));
-	outputFileDoc.open("doctor.csv",ios::app);
-	outputFileDoc<<name+","+family+","+phone+","+to_string(age)+","+proficiency+","+to_string(codeDoctor)+"\n";
+	
+	
+	Doctor doctor(codeDoctor,name,family,phone,age,proficiency);
+	ofstream out(doctorFile);
+	out<<doctor;
+	out.close();
 }
 void displayAllDoc(){
 	cout<<"******************* Hospital Managment System ***********************\n\n";
@@ -362,10 +463,14 @@ void displayAllDoc(){
 	cout<<"=====================================================================\n";
 	cout<<"=Name      Family      Phone      Age     Proficiency     codeDoctor=\n";
 	cout<<"=====================================================================\n";
-	for(int i=0;i<listDoctor.size();i++){
+	
+	showData(doctorFile);
+	
+	
+	/*for(int i=0;i<listDoctor.size();i++){
 		cout<<i+1<<".";
 		listDoctor[i].report();
-	}
+	}*/
 }
 void displayOneDoc(int codeDoctor){
 	cout<<"******************* Hospital Managment System ***********************\n\n";
@@ -429,7 +534,7 @@ void deleteAllDoc(){
 }
 void deleteOneDoc(int code){
 	
-	csvReader reader("doctor.csv");
+	CSVReader reader("doctor.csv");
 	vector<vector<string>> vec=reader.getData();
 	for(vector<string> dataList:vec){
 		for(string data:dataList){
@@ -492,67 +597,88 @@ void deleteOneDoc(int code){
 vector<Doctor> getDoctorList(){
 	return listDoctor;
 }
-void printSavedReservation(int code){
+void printSavedPatients(int code){
 	cout<<"*************** Hospital Managment System ***************\n\n\n";
 	cout<<"#########################################################\n";
 	cout<<"##################   Report doctor   ####################\n";
 	cout<<"#########################################################\n";
+	
+	pd=new PD();
+	pd->showPatientList(code);
+	
+	//showData(reservationFile);
+	/*
 	multimap<int, string> list=getSavedReservation();
 	for(multimap<int ,string>::iterator it=list.begin();it!=list.end();it++){
 		if(code==it->first){
 			cout<<it->second<<"\n";
 		}
 	}
+	*/
 }
 //////////////   Patient   ///////////////
 vector<Patient> listPatient, listPatientTemp;
 fstream outputFilePat;
 void writePatient(){
 	Patient p;
-	string name, family, phone, diseaseType, doctorName;
-	int age, codePatient;
 	Name n;
 	Family f;
 	Phone ph;
 	Age a;
+	
+	string name, family, phone, doctorName, illnessType;
+	int age,codePatient;
+
 	name=n.getName();
 	family=f.getFamily();
 	phone=ph.getPhone();
 	age=a.getAge("patient");
-	cout<<"\nenter code patient:";
+	cout<<"illness type:";
+	cin>>illnessType;
+	cout<<"code patient:";
 	cin>>codePatient;
-	cout<<"\nenter disease Type:";
-	cin>>diseaseType;
-	doctorName=p.selectDoctor(name, family, diseaseType);
-	if(doctorName=="false"){
-		return;
-	}
-	listPatient.push_back(Patient(name,family,phone,age,diseaseType,codePatient,doctorName));
+	doctorName=p.selectDoctor(codePatient);
+	//Doctor doctor;
+	/*
+	outputFilePat.open(reservationFile,ios::app);
+	outputFilePat<<name+","+family+","+to_string(codeDoctor)+"\n";
+	*/
+	Patient patient(codePatient,name,family,phone,age,doctorName,illnessType);
+	ofstream out(patientFile);
+	out<<patient;
+	out.close();
+	
+	/*listPatient.push_back(Patient(name,family,phone,age,diseaseType,codePatient,doctorName));
 	outputFilePat.open("Patient.csv",ios::out);
-	outputFilePat<<name+","+family+","+phone+","+to_string(age)+","+diseaseType+","+to_string(codePatient)+","+doctorName+"\n";
+	outputFilePat<<name+","+family+","+phone+","+to_string(age)+","+to_string(codePatient)+","+doctorName+"\n";
+	*/
 }
 void displayAllPat(){
 	Person p;
-	cout<<"****************** Hospital Managment System ***************\n\n";
+	cout<<"****************** Hospital Managment System ***************\n\n\n";
 	cout<<"############################################################\n";
 	cout<<"####################   Report patient   ####################\n";
 	cout<<"############################################################\n";
 	cout<<"============================================================\n";
-	cout<<"=Name Family   Phone Age diseaseType codePatient doctorName=\n";
+	cout<<"=Name Family Phone   Age doctorName illnessType codePatient=\n";
 	cout<<"============================================================\n";
+	
+	showData(patientFile);
+	/*
 	for(int i=0;i<listPatient.size();i++){
 		cout<<i+1;
 		listPatient[i].report();
 	}
+	*/
 }
 void displayOnePat(int codePatient){
 	Person p;
-	cout<<"****************** Hospital Managment System ***************\n\n";
+	cout<<"****************** Hospital Managment System ***************\n\n\n";
 	cout<<"############################################################\n";
 	cout<<"#####################   Report patients  ###################\n";
 	cout<<"############################################################\n";
 	cout<<"============================================================\n";
-	cout<<"=Name Family   Phone Age diseaseType codePatient doctorName=\n";
+	cout<<"=Name Family Phone   Age doctorName illnessType codePatient=\n";
 	cout<<"============================================================\n";
 	for(int i=0;i<listDoctor.size();i++){
 		if(codePatient==listPatient[i].getCodePatient()){
@@ -618,8 +744,34 @@ void deleteOnePat(int code){
 vector<Patient> getPatientList(){
 	return listPatient;
 }
-string Patient::selectDoctor(string name, string family, string diseaseType){
-	string doctorName;
+string Patient::selectDoctor(int codePatient){
+	int code;
+	showData(doctorFile);
+	ifstream in(doctorFile);
+	Doctor doctor;
+	long int size=getSizeOfFile(doctorFile);
+	in.seekg(0);
+	pd=new PD();
+	
+	cout<<"enter code doctor to reserve:";
+	cin>>code;
+	
+	for(int i=0;i<size;i++){
+		in>> doctor;
+		if(code==doctor.getCodeEmp()){
+			//doctor.saveReservation(name, family);
+			pd->insert(code,codePatient);
+			return (doctor.getName()+" "+doctor.getFamily());
+		}
+	}
+	
+	in.close();
+	
+	
+	
+	
+	
+	/*string doctorName;
 	int code;
 	bool find=false;
 	cout<<"\nenter the code of doctor to reserve:";
@@ -639,7 +791,7 @@ string Patient::selectDoctor(string name, string family, string diseaseType){
 	if(find==false){
 		cout<<"there is not this code in available doctors.\n";
 		return "false";
-	}
+	}*/
 }
 ////////////////Employee///////////////////////
 
@@ -665,9 +817,9 @@ void reportMenu(){
 					cout<<"#########################################################\n";
 					cout<<"##################   Report Menu   ######################\n";
 					cout<<"#########################################################\n";
-					cout<<"\n1.All doctors record";
+					cout<<"\n1.All doctors records";
 					cout<<"\n2.A doctor record";
-					cout<<"\n3.Patient list";
+					cout<<"\n3.Patients list";
 					cout<<"\n4.Back to report menu";
 					cout<<"\n\nenter your choice(1|2|3|4):";
 					cin>>c;
@@ -687,7 +839,7 @@ void reportMenu(){
 							cout<<"Enter doctor code to report:";
 							cin>>code;
 							//system("cls");
-							printSavedReservation(code);
+							printSavedPatients(code);
 							break;
 						case 4:
 							break;
@@ -703,7 +855,7 @@ void reportMenu(){
 					cout<<"#########################################################\n";
 					cout<<"##################   Report Menu   ######################\n";
 					cout<<"#########################################################\n";
-					cout<<"\n1.All patient record";
+					cout<<"\n1.All patients records";
 					cout<<"\n2.A patient record";
 					cout<<"\n3.Back to report menu";
 					cout<<"\n\nenter your choice(1|2|3):";
@@ -735,9 +887,9 @@ void reportMenu(){
 					cout<<"#########################################################\n";
 					cout<<"##################   Report Menu   ######################\n";
 					cout<<"#########################################################\n";
-					cout<<"\n1.All doctors record";
+					cout<<"\n1.All doctors records";
 					cout<<"\n2.A doctor record";
-					cout<<"\n3.Patient list";
+					cout<<"\n3.Patients list";
 					cout<<"\n4.Back to report menu";
 					cout<<"\n\nenter your choice(1|2|3|4):";
 					cin>>c;
@@ -757,7 +909,7 @@ void reportMenu(){
 							cout<<"Enter doctor code to report:";
 							cin>>code;
 							//system("cls");
-							printSavedReservation(code);
+							printSavedPatients(code);
 							break;
 						case 4:
 							break;
@@ -871,7 +1023,7 @@ void entryMenu(){
 					cout<<"\n6.Modify a patient";
 					cout<<"\n7.Delete all patients";
 					cout<<"\n8.Delete a patient";
-					cout<<"\n9.Back to report menu";
+					cout<<"\n9.Back to entry menu";
 					cout<<"\n\nenter your choice(1-9):";
 					cin>>choice;
 					switch(choice){
